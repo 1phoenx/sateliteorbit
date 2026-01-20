@@ -1,6 +1,50 @@
 """
 批量特征提取模块 v2
 基于 Spacecraft Thruster Firing Test Dataset 提取 P/T/R 特征
+
+物理背景与公式支撑:
+====================
+
+1. 辐射强度峰值 P (Radiation Intensity Peak)
+   物理意义: 推力器点火时产生的尾焰辐射强度峰值，与推力大小正相关
+   物理公式: P = η × F^β + P₀
+   其中:
+   - η: 辐射效率系数 (取决于推进剂类型)
+   - F: 推力大小 (N)
+   - β: 幂指数 (通常 0.8~1.2)
+   - P₀: 背景辐射
+
+   在本数据集中: P = max(thrust_filtered) - B_thrust
+   有效性判据: P > 3σ (3倍背景噪声标准差)
+
+2. 持续时间 T (Duration)
+   物理意义: 推力器点火持续时间，与速度增量Δv相关
+   物理公式: Δv = (F × T) / m = Isp × g₀ × ln(m₀/m₁)
+   其中:
+   - F: 推力 (N)
+   - T: 持续时间 (s)
+   - m: 航天器质量 (kg)
+   - Isp: 比冲 (s)
+   - g₀: 标准重力加速度 (9.80665 m/s²)
+
+   在本数据集中: T = (last_idx - first_idx) × dt
+   其中 first_idx/last_idx 为推力超过阈值的首末时刻
+
+3. 频域强度比 R (Frequency Domain Intensity Ratio)
+   物理意义: 基频与二次谐波的幅值比，反映推进剂燃烧状态和推力器类型
+   物理公式: R = |FFT(signal)|_f₀ / |FFT(signal)|_2f₀
+   其中:
+   - f₀: 基频 (主频率分量)
+   - 2f₀: 二次谐波
+
+   物理解释:
+   - 稳定燃烧: R较大 (基频占主导)
+   - 不稳定燃烧: R较小 (谐波分量增加)
+   - 不同推进剂类型有不同的R特征值
+
+参考文献:
+- Sutton, G.P., Biblarz, O. "Rocket Propulsion Elements" (推进剂燃烧特性)
+- Humble, R.W. et al. "Space Propulsion Analysis and Design" (推力器性能分析)
 """
 
 import os
@@ -91,12 +135,20 @@ class ThrusterFeatureExtractor:
         return P
 
     def extract_T(self, thrust: np.ndarray, B_thrust: float,
-                  sigma: float) -> Tuple[float, float, float]:
+                  sigma: float, ton: np.ndarray = None,
+                  use_precise_detection: bool = True) -> Tuple[float, float, float]:
         """
         提取持续时间 T 和点火时刻
 
         T = thrust超过阈值的首次/末次时刻差值
         阈值 = 背景值 + 3×σ
+
+        Args:
+            thrust: 推力数据
+            B_thrust: 背景均值
+            sigma: 背景标准差
+            ton: 推力器开关状态 (用于精确检测)
+            use_precise_detection: 是否使用精确点火检测算法
         """
         threshold = B_thrust + 3 * sigma
         thrust_filtered = self.moving_average_filter(thrust)
@@ -110,8 +162,26 @@ class ThrusterFeatureExtractor:
         last_idx = indices[-1]
 
         T = (last_idx - first_idx) * self.dt
-        ignition_time = first_idx * self.dt
         true_thrust = np.mean(thrust_filtered[above_threshold])
+
+        # 使用精确点火检测算法
+        if use_precise_detection:
+            try:
+                from src.ignition_detector import detect_ignition_ensemble
+                result = detect_ignition_ensemble(
+                    thrust, ton, sampling_rate=self.sampling_rate
+                )
+                if not np.isnan(result['ignition_time']):
+                    ignition_time = result['ignition_time']
+                    # 更新持续时间
+                    if result['duration'] > 0:
+                        T = result['duration']
+                else:
+                    ignition_time = first_idx * self.dt
+            except ImportError:
+                ignition_time = first_idx * self.dt
+        else:
+            ignition_time = first_idx * self.dt
 
         return T, ignition_time, true_thrust
 
@@ -175,7 +245,7 @@ class ThrusterFeatureExtractor:
 
             B_thrust, sigma = self.compute_baseline(thrust, ton)
             P = self.extract_P(thrust, ton, B_thrust, sigma)
-            T, ignition_time, true_thrust = self.extract_T(thrust, B_thrust, sigma)
+            T, ignition_time, true_thrust = self.extract_T(thrust, B_thrust, sigma, ton)
             R = self.extract_R(thrust, T)
 
             is_valid = 1 if (P > 0 and T >= 0.1) else 0

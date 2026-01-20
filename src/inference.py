@@ -72,6 +72,7 @@ class TwoStageInference:
             特征字典 {P, T, R, ignition_time, is_valid}
         """
         from src.feature_extraction_v2 import ThrusterFeatureExtractor
+        from src.ignition_detector import detect_ignition_ensemble
 
         extractor = ThrusterFeatureExtractor(sampling_rate=sampling_rate)
 
@@ -80,8 +81,23 @@ class TwoStageInference:
 
         # 提取P/T/R特征
         P = extractor.extract_P(thrust, ton, B_thrust, sigma)
-        T, ignition_time, true_thrust = extractor.extract_T(thrust, B_thrust, sigma)
+        T, _, true_thrust = extractor.extract_T(thrust, B_thrust, sigma, ton, use_precise_detection=False)
         R = extractor.extract_R(thrust, T)
+
+        # 使用精确点火检测
+        ignition_result = detect_ignition_ensemble(thrust, ton, sampling_rate)
+        ignition_time = ignition_result['ignition_time']
+        ignition_confidence = ignition_result['confidence']
+
+        # 如果精确检测失败，使用简单阈值方法
+        if np.isnan(ignition_time):
+            threshold = B_thrust + 3 * sigma
+            thrust_filtered = extractor.moving_average_filter(thrust)
+            above_threshold = thrust_filtered > threshold
+            if np.any(above_threshold):
+                ignition_time = np.argmax(above_threshold) / sampling_rate
+            else:
+                ignition_time = np.nan
 
         is_valid = 1 if (P > 0 and T >= 0.1) else 0
 
@@ -90,6 +106,7 @@ class TwoStageInference:
             'T': T,
             'R': R,
             'ignition_time': ignition_time,
+            'ignition_confidence': ignition_confidence,
             'true_thrust': true_thrust,
             'is_valid': is_valid
         }
