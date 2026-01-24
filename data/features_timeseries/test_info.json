@@ -1,0 +1,22 @@
+{
+  "split": "test",
+  "total_samples": 1344,
+  "failed_samples": 0,
+  "feature_dimensions": {
+    "statistical": [
+      1344,
+      3
+    ],
+    "thrust_sequence": [
+      1344,
+      300
+    ],
+    "mfr_sequence": [
+      1344,
+      300
+    ]
+  },
+  "sequence_length": 300,
+  "anomaly_count": 105,
+  "normal_count": 1239
+}

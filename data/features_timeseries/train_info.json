@@ -1,0 +1,22 @@
+{
+  "split": "train",
+  "total_samples": 1267,
+  "failed_samples": 0,
+  "feature_dimensions": {
+    "statistical": [
+      1267,
+      3
+    ],
+    "thrust_sequence": [
+      1267,
+      300
+    ],
+    "mfr_sequence": [
+      1267,
+      300
+    ]
+  },
+  "sequence_length": 300,
+  "anomaly_count": 110,
+  "normal_count": 1157
+}
