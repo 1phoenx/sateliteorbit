@@ -1,0 +1,28 @@
+{
+  "feature_names": [
+    "background_mean",
+    "background_std",
+    "threshold",
+    "peak_intensity",
+    "mean_intensity",
+    "total_energy",
+    "num_pulses",
+    "mean_pulse_duration",
+    "max_pulse_duration",
+    "mean_pulse_peak",
+    "max_pulse_peak",
+    "mean_pulse_energy",
+    "max_rise_rate",
+    "mean_rise_rate",
+    "mean_pulse_interval",
+    "min_pulse_interval"
+  ],
+  "train_samples": 1158,
+  "test_samples": 185,
+  "models": {
+    "ignition_detector": "ignition_detector.pkl",
+    "maneuver_classifier": "maneuver_classifier.pkl",
+    "thrust_regressor": "thrust_regressor.pkl",
+    "maneuver_type_classifier": "maneuver_type_classifier.pkl"
+  }
+}
