@@ -1,0 +1,15 @@
+{
+  "accuracy": 63.913690476190474,
+  "false_alarm_rate": 34.86682808716707,
+  "mean_thrust_error": 0.1265095177793547,
+  "mean_inference_time": 0.0009173133543559483,
+  "total_samples": 1344,
+  "total_anomalies": 105,
+  "total_normal": 1239,
+  "true_positives": 52,
+  "false_positives": 432,
+  "true_negatives": 807,
+  "false_negatives": 53,
+  "recall": 49.523809523809526,
+  "precision": 10.743801652892563
+}
